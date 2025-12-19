@@ -4,7 +4,6 @@ import pandas as pd
 from datetime import datetime
 from io import BytesIO
 import hashlib
-import sqlite3
 import os
 from generer_memo import generer_memo_mensuel
 import generer_memo
