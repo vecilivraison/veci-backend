@@ -8,12 +8,22 @@ import sqlite3
 import os
 from generer_memo import generer_memo_mensuel
 import generer_memo
+import os
+from sqlalchemy import create_engine
+import pandas as pd
 print("📁 Fichier utilisé :", generer_memo.__file__)
 
 st.set_page_config(page_title="🚛 Visualisation des livraisons", layout="wide")
 
-chemin_parametres = r"C:\Users\Utilisateur\Bot_arbitrage\BOT_MULTI_EXCHANGE\Bot Manquant\parametres.db"
-chemin_db = r"C:\Users\Utilisateur\Bot_arbitrage\BOT_MULTI_EXCHANGE\Bot Manquant\livraisons.db"
+# Récupérer l’URL depuis Render
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+# Créer un moteur SQLAlchemy
+engine = create_engine(DATABASE_URL)
+
+# Exemple : lire la table livraison
+df_liv = pd.read_sql("SELECT * FROM livraison", engine)
+
 
 # -------------------- BLOC 1 — PAGE DE CONNEXION --------------------
 if "utilisateur" not in st.session_state:
