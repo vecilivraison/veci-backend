@@ -1,2 +1,0 @@
-postgresql://manquant_db_user:44WHps3QV4nHqOZcjQvibT0PnI6zMiL2@dpg-d3vmng7diees73f4c4c0-a/manquant_db
-postgresql://manquant_db_user:44WHps3QV4nHqOZcjQvibT0PnI6zMiL2@dpg-d3vmng7diees73f4c4c0-a.frankfurt-postgres.render.com/manquant_db

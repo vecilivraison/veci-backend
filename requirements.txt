@@ -1,9 +1,0 @@
-streamlit
-pandas
-xlsxwriter
-psycopg2-binary
-sqlalchemy
-python-dotenv
-fpdf
-openpyxl
-python-docx
