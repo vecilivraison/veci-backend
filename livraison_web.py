@@ -8,8 +8,6 @@ import os
 from sqlalchemy import create_engine, text
 from generer_memo import generer_memo_mensuel
 
-st.write("DEBUG utilisateur:", st.session_state.get("utilisateur"))
-st.write("DEBUG menu:", st.session_state.get("menu_selectionne"))
 
 # ✅ Connexion PostgreSQL via Render
 DATABASE_URL = os.getenv("DATABASE_URL")  # doit être défini dans Render
