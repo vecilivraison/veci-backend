@@ -71,7 +71,7 @@ def get_prix_applicable(produit_id, date_livraison):
         raise ValueError(f"Aucun prix enregistré pour {produit_id} à la date {date_livraison}")
 
 def calcul_volume(df, produit_id, prix):
-    df_p = df[df["produit"] == produit_id]
+    df_p = df[df["produit_id"] == produit_id]
     vol_livre = df_p["volume_livre"].sum()
     vol_manq = df_p[df_p["commentaire"] == "Remboursable"]["volume_manquant"].sum()
     val_manq = vol_manq * prix
