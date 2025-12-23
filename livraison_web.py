@@ -232,10 +232,24 @@ def afficher_menu_prix():
                             st.session_state.show_form_prix = False
                             st.rerun()
                     else:
-                        conn.execute(text("""
-                            INSERT INTO prix_vente (produit_id, prix, date_debut, date_fin, date_modification)
-                            VALUES (:pid, :prix, :deb, :fin, :modif)
-                        """), {"pid": produit_id, "prix": prix, "deb": str(date_debut), "fin": str(date_fin), "modif": datetime.now()})
+                        try:
+                            with engine.begin() as conn:
+                                conn.execute(text("""
+                                    INSERT INTO prix_vente (produit_id, prix, date_debut, date_fin, date_modification)
+                                    VALUES (:pid, :prix, :deb, :fin, :modif)
+                                """), {
+                                    "pid": produit_id,
+                                    "prix": prix,
+                                    "deb": date_debut,   # ✅ garder l'objet date
+                                    "fin": date_fin,     # ✅ garder l'objet date
+                                    "modif": datetime.now()
+                                })
+                            st.success("✅ Prix enregistré.")
+                            st.session_state.show_form_prix = False
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"❌ Erreur lors de l'enregistrement : {e}")
+                    
                         st.success("✅ Prix enregistré.")
                         st.session_state.show_form_prix = False
                         st.rerun()
