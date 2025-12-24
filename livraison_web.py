@@ -134,7 +134,9 @@ def afficher_menu_livraisons():
         df_liv["date"] = pd.to_datetime(df_liv["date"]).dt.date
         df_liv = df_liv[(df_liv["date"] >= date_debut) & (df_liv["date"] <= date_fin)]
 
+        nom_produits = {"PDT1": "Super", "PDT2": "Diesel", "PDT3": "Pétrole"}
         tableau = []
+
         for _, row in df_liv.iterrows():
             id_liv = row["id"]
             df_c = df_comp[df_comp["livraison_id"] == id_liv]
@@ -155,21 +157,106 @@ def afficher_menu_livraisons():
             total_m = manq_super + manq_diesel + manq_petrole
             total_x = val_super + val_diesel + val_petrole
 
-            tableau.append([row["id"], row["date"], row["commande"], row["bl_num"], row["depot"],
-                            row["transporteur_id"], row["tracteur"], row["citerne"], row["chauffeur"],
-                            vol_super, vol_diesel, vol_petrole, total_l,
-                            manq_super, manq_diesel, manq_petrole, total_m,
-                            val_super, val_diesel, val_petrole, total_x])
+            tableau.append([
+                row["id"], row["date"], row["commande"], row["bl_num"], row["depot"],
+                row["transporteur_id"], row["tracteur"], row["citerne"], row["chauffeur"],
+                vol_super, vol_diesel, vol_petrole, total_l,
+                manq_super, manq_diesel, manq_petrole, total_m,
+                val_super, val_diesel, val_petrole, total_x
+            ])
 
-        df_all = pd.DataFrame(tableau, columns=[
-            "Id", "Date", "Commande", "BL", "Dépôt", "Transporteur",
-            "Tracteur", "Citerne", "Chauffeur",
-            "Super (L)", "Diesel (L)", "Pétrole (L)", "Total (L)",
-            "Super manquant", "Diesel manquant", "Pétrole manquant", "Total manquant",
-            "Super (XOF)", "Diesel (XOF)", "Pétrole (XOF)", "Total (XOF)"
+        # ✅ Colonnes enrichies avec MultiIndex
+        columns = pd.MultiIndex.from_tuples([
+            ("INFORMATION GÉNÉRALE", "Id"), ("INFORMATION GÉNÉRALE", "Date"), ("INFORMATION GÉNÉRALE", "Commande"),
+            ("INFORMATION GÉNÉRALE", "BL"), ("INFORMATION GÉNÉRALE", "Dépôt"), ("INFORMATION GÉNÉRALE", "Transporteur"),
+            ("INFORMATION GÉNÉRALE", "Tracteur"), ("INFORMATION GÉNÉRALE", "Citerne"), ("INFORMATION GÉNÉRALE", "Chauffeur"),
+            ("VOLUME LIVRÉ", f"{nom_produits['PDT1']} (L)"), ("VOLUME LIVRÉ", f"{nom_produits['PDT2']} (L)"),
+            ("VOLUME LIVRÉ", f"{nom_produits['PDT3']} (L)"), ("VOLUME LIVRÉ", "Total (L)"),
+            ("MANQUANT EN LITRE", f"{nom_produits['PDT1']} (L)"), ("MANQUANT EN LITRE", f"{nom_produits['PDT2']} (L)"),
+            ("MANQUANT EN LITRE", f"{nom_produits['PDT3']} (L)"), ("MANQUANT EN LITRE", "Total (L)"),
+            ("MANQUANT EN XOF", f"{nom_produits['PDT1']} (XOF)"), ("MANQUANT EN XOF", f"{nom_produits['PDT2']} (XOF)"),
+            ("MANQUANT EN XOF", f"{nom_produits['PDT3']} (XOF)"), ("MANQUANT EN XOF", "Total (XOF)")
         ])
 
-        st.dataframe(df_all, use_container_width=True)
+        df_all = pd.DataFrame(tableau, columns=columns)
+
+        # ✅ Export Excel avec couleurs
+        buffer = BytesIO()
+        import xlsxwriter
+        from collections import defaultdict
+
+        workbook = xlsxwriter.Workbook(buffer)
+        worksheet = workbook.add_worksheet("RECAP")
+
+        couleurs = {
+            "INFORMATION GÉNÉRALE": ("#B7DEE8", "#DCEEF4"),
+            "VOLUME LIVRÉ": ("#FCD5B4", "#FDE9D9"),
+            "MANQUANT EN LITRE": ("#FFF2CC", "#FFF9E5"),
+            "MANQUANT EN XOF": ("#D9D2E9", "#EDEAF5"),
+        }
+
+        formats_header, formats_sub = {}, {}
+        for cat, (bg_header, bg_sub) in couleurs.items():
+            formats_header[cat] = workbook.add_format({"bold": True, "align": "center", "valign": "vcenter", "border": 1, "bg_color": bg_header})
+            formats_sub[cat] = workbook.add_format({"bold": True, "align": "center", "valign": "vcenter", "border": 1, "bg_color": bg_sub})
+
+        format_cell_gauche = workbook.add_format({"align": "left", "valign": "vcenter", "border": 1})
+        format_cell_centre = workbook.add_format({"align": "center", "valign": "vcenter", "border": 1})
+        format_cell_droite = workbook.add_format({"align": "right", "valign": "vcenter", "border": 1})
+
+        groupes = defaultdict(list)
+        for col in df_all.columns:
+            groupes[col[0]].append(col[1])
+
+        col = 0
+        colonne_to_categorie = {}
+        for cat, subcols in groupes.items():
+            largeur = len(subcols)
+            worksheet.merge_range(0, col, 0, col + largeur - 1, cat, formats_header[cat])
+            for i, sub in enumerate(subcols):
+                worksheet.write(1, col + i, sub, formats_sub[cat])
+                colonne_to_categorie[col + i] = cat
+            col += largeur
+
+        for row_idx, row in enumerate(df_all.values):
+            for col_idx, val in enumerate(row):
+                cat = colonne_to_categorie.get(col_idx, "")
+                if cat == "INFORMATION GÉNÉRALE":
+                    fmt = format_cell_gauche
+                elif cat == "MANQUANT EN XOF":
+                    fmt = format_cell_droite
+                else:
+                    fmt = format_cell_centre
+
+                if cat in ["VOLUME LIVRÉ", "MANQUANT EN XOF"]:
+                    fmt.set_num_format("# ##0")
+                    worksheet.write_number(row_idx + 2, col_idx, float(val) if val != "" else 0, fmt)
+                else:
+                    worksheet.write(row_idx + 2, col_idx, val, fmt)
+
+        for i in range(col):
+            worksheet.set_column(i, i, 18)
+
+        workbook.close()
+        buffer.seek(0)
+
+        # ✅ Bouton de téléchargement Excel
+        st.download_button(
+            label="📥 Exporter en Excel",
+            data=buffer,
+            file_name="recap_manquant.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
+        # ✅ Affichage enrichi
+        st.markdown("""
+        <style>
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 6px 12px; text-align: left; white-space: nowrap; }
+        </style>
+        """, unsafe_allow_html=True)
+
+        st.write(df_all.to_html(escape=False, index=False), unsafe_allow_html=True)
 
 # -------------------- BLOC 5 — GESTION DES PRIX --------------------
 def afficher_menu_prix():
