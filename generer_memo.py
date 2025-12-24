@@ -53,7 +53,7 @@ def generer_memo_mensuel(mois_selectionne, afficher=False):
 
     # 📥 Requêtes sur PostgreSQL
     df_liv = pd.read_sql("""
-        SELECT id AS livraison_id, date, transporteur_id, depot AS site_id
+        SELECT id AS livraison_id, date, transporteur_id, site_id
         FROM livraison
         WHERE date BETWEEN %(deb)s AND %(fin)s
     """, engine, params={"deb": str(mois_debut.date()), "fin": str(mois_fin.date())})

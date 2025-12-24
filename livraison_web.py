@@ -155,7 +155,7 @@ def afficher_menu_livraisons():
             total_m = manq_super + manq_diesel + manq_petrole
             total_x = val_super + val_diesel + val_petrole
 
-            tableau.append([row["id"], row["date"], row["commande"], row["bl"], row["depot"],
+            tableau.append([row["id"], row["date"], row["commande"], row["bl_num"], row["depot"],
                             row["transporteur_id"], row["tracteur"], row["citerne"], row["chauffeur"],
                             vol_super, vol_diesel, vol_petrole, total_l,
                             manq_super, manq_diesel, manq_petrole, total_m,
