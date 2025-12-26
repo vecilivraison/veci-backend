@@ -228,10 +228,13 @@ def afficher_menu_livraisons():
                         df_all = df_all[df_all[col_tuple] == choix]
 
 
-        # ✅ Export Excel avec couleurs
+        # ✅ Export Excel avec couleurs (sans les colonnes PIÈCES JOINTES)
         buffer = BytesIO()
         import xlsxwriter
         from collections import defaultdict
+
+        # ✅ Exclure les colonnes PIÈCES JOINTES
+        df_export = df_all[[col for col in df_all.columns if col[0] != "PIÈCES JOINTES"]]
 
         workbook = xlsxwriter.Workbook(buffer)
         worksheet = workbook.add_worksheet("RECAP")
@@ -245,15 +248,20 @@ def afficher_menu_livraisons():
 
         formats_header, formats_sub = {}, {}
         for cat, (bg_header, bg_sub) in couleurs.items():
-            formats_header[cat] = workbook.add_format({"bold": True, "align": "center", "valign": "vcenter", "border": 1, "bg_color": bg_header})
-            formats_sub[cat] = workbook.add_format({"bold": True, "align": "center", "valign": "vcenter", "border": 1, "bg_color": bg_sub})
+            formats_header[cat] = workbook.add_format({
+                "bold": True, "align": "center", "valign": "vcenter", "border": 1, "bg_color": bg_header
+            })
+            formats_sub[cat] = workbook.add_format({
+                "bold": True, "align": "center", "valign": "vcenter", "border": 1, "bg_color": bg_sub
+            })
 
         format_cell_gauche = workbook.add_format({"align": "left", "valign": "vcenter", "border": 1})
         format_cell_centre = workbook.add_format({"align": "center", "valign": "vcenter", "border": 1})
         format_cell_droite = workbook.add_format({"align": "right", "valign": "vcenter", "border": 1})
 
+        # ✅ Regrouper les colonnes par catégorie
         groupes = defaultdict(list)
-        for col in df_all.columns:
+        for col in df_export.columns:
             groupes[col[0]].append(col[1])
 
         col = 0
@@ -266,7 +274,8 @@ def afficher_menu_livraisons():
                 colonne_to_categorie[col + i] = cat
             col += largeur
 
-        for row_idx, row in enumerate(df_all.values):
+        # ✅ Écriture des données
+        for row_idx, row in enumerate(df_export.values):
             for col_idx, val in enumerate(row):
                 cat = colonne_to_categorie.get(col_idx, "")
                 if cat == "INFORMATION GÉNÉRALE":
@@ -278,10 +287,14 @@ def afficher_menu_livraisons():
 
                 if cat in ["VOLUME LIVRÉ", "MANQUANT EN XOF"]:
                     fmt.set_num_format("# ##0")
-                    worksheet.write_number(row_idx + 2, col_idx, float(val) if val != "" else 0, fmt)
+                    try:
+                        worksheet.write_number(row_idx + 2, col_idx, float(val) if val != "" else 0, fmt)
+                    except:
+                        worksheet.write(row_idx + 2, col_idx, str(val), fmt)
                 else:
                     worksheet.write(row_idx + 2, col_idx, val, fmt)
 
+        # ✅ Ajuster largeur des colonnes
         for i in range(col):
             worksheet.set_column(i, i, 18)
 
