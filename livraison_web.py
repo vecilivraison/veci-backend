@@ -192,12 +192,12 @@ def afficher_menu_livraisons():
             ("MANQUANT EN LITRE", f"{nom_produits['PDT1']} (L)"), ("MANQUANT EN LITRE", f"{nom_produits['PDT2']} (L)"),
             ("MANQUANT EN LITRE", f"{nom_produits['PDT3']} (L)"), ("MANQUANT EN LITRE", "Total (L)"),
             ("MANQUANT EN XOF", f"{nom_produits['PDT1']} (XOF)"), ("MANQUANT EN XOF", f"{nom_produits['PDT2']} (XOF)"),
-            ("MANQUANT EN XOF", f"{nom_produits['PDT3']} (XOF)"), ("MANQUANT EN XOF", "Total (XOF)")
+            ("MANQUANT EN XOF", f"{nom_produits['PDT3']} (XOF)"), ("MANQUANT EN XOF", "Total (XOF)"),
             ("PIÈCES JOINTES", "Résumé PDF"), ("PIÈCES JOINTES", "BL"), ("PIÈCES JOINTES", "OCST") # ✅ AJOUT DES PIÈCES JOINTES
         ])
 
         df_all = pd.DataFrame(tableau, columns=columns)
-        
+
         # ✅ Filtres dynamiques alignés avec les colonnes INFORMATION GÉNÉRALE
         st.markdown("### 🔎 Filtres par colonne")
 
