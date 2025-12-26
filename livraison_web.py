@@ -116,10 +116,17 @@ def afficher_menu_livraisons():
     st.title("🚛 VISUALISATION DES LIVRAISONS")
 
     col1, col2, col3 = st.columns([2, 2, 2])
+    from datetime import date
+
+    # ✅ Calcul du 1er jour du mois courant
+    premier_jour_mois = date.today().replace(day=1)
+    aujourdhui = date.today()
+
     with col1:
-        date_debut = st.date_input("📅 Date de début", value=datetime.today())
+        date_debut = st.date_input("📅 Date de début", value=premier_jour_mois)
     with col2:
-        date_fin = st.date_input("📅 Date de fin", value=datetime.today())
+        date_fin = st.date_input("📅 Date de fin", value=aujourdhui)
+
     with col3:
         afficher = st.button("🔍 Afficher")
 
@@ -156,13 +163,23 @@ def afficher_menu_livraisons():
             total_l = vol_super + vol_diesel + vol_petrole
             total_m = manq_super + manq_diesel + manq_petrole
             total_x = val_super + val_diesel + val_petrole
+            # ✅ Génération des liens pour les pièces jointes avec boutons cliquables
+            pdf_path = os.path.join(os.path.expanduser("~"), "Documents",
+                                    f"Résumé_livraison_{row['commande']}_{row['bl_num']}_{row['date']}.pdf").replace(" ", "_")
+            bl_path = os.path.join("docs", os.path.basename(str(row.get("photo_bl_path", ""))))
+            ocst_path = os.path.join("docs", os.path.basename(str(row.get("photo_ocst_path", ""))))
+
+            lien_pdf = f'<a href="file:///{pdf_path.replace(os.sep, "/")}" target="_blank"><button>Voir Résumé PDF</button></a>' if os.path.exists(pdf_path) else "❌"
+            lien_bl = f'<a href="file:///{bl_path.replace(os.sep, "/")}" target="_blank"><button>Voir BL</button></a>' if os.path.exists(bl_path) else "❌"
+            lien_ocst = f'<a href="file:///{ocst_path.replace(os.sep, "/")}" target="_blank"><button>Voir OCST</button></a>' if os.path.exists(ocst_path) else "❌"
+
 
             tableau.append([
                 row["id"], row["date"], row["commande"], row["bl_num"], row["depot"],
                 row["transporteur_id"], row["tracteur"], row["citerne"], row["chauffeur"],
                 vol_super, vol_diesel, vol_petrole, total_l,
                 manq_super, manq_diesel, manq_petrole, total_m,
-                val_super, val_diesel, val_petrole, total_x
+                val_super, val_diesel, val_petrole, total_x, lien_pdf, lien_bl, lien_ocst # ✅ AJOUT DES PIÈCES JOINTES
             ])
 
         # ✅ Colonnes enrichies avec MultiIndex
@@ -176,9 +193,40 @@ def afficher_menu_livraisons():
             ("MANQUANT EN LITRE", f"{nom_produits['PDT3']} (L)"), ("MANQUANT EN LITRE", "Total (L)"),
             ("MANQUANT EN XOF", f"{nom_produits['PDT1']} (XOF)"), ("MANQUANT EN XOF", f"{nom_produits['PDT2']} (XOF)"),
             ("MANQUANT EN XOF", f"{nom_produits['PDT3']} (XOF)"), ("MANQUANT EN XOF", "Total (XOF)")
+            ("PIÈCES JOINTES", "Résumé PDF"), ("PIÈCES JOINTES", "BL"), ("PIÈCES JOINTES", "OCST") # ✅ AJOUT DES PIÈCES JOINTES
         ])
 
         df_all = pd.DataFrame(tableau, columns=columns)
+        
+        # ✅ Filtres dynamiques alignés avec les colonnes INFORMATION GÉNÉRALE
+        st.markdown("### 🔎 Filtres par colonne")
+
+        # Liste des colonnes à filtrer
+        colonnes_info = [
+            ("INFORMATION GÉNÉRALE", "Id"),
+            ("INFORMATION GÉNÉRALE", "Commande"),
+            ("INFORMATION GÉNÉRALE", "BL"),
+            ("INFORMATION GÉNÉRALE", "Dépôt"),
+            ("INFORMATION GÉNÉRALE", "Transporteur"),
+            ("INFORMATION GÉNÉRALE", "Tracteur"),
+            ("INFORMATION GÉNÉRALE", "Citerne"),
+            ("INFORMATION GÉNÉRALE", "Chauffeur")
+        ]
+
+        # Créer une ligne de filtres alignés
+        colonnes_streamlit = st.columns(len(colonnes_info))
+        for i, (col_tuple) in enumerate(colonnes_info):
+            with colonnes_streamlit[i]:
+                st.markdown(f"**{col_tuple[1]}**")
+                saisie = st.text_input("", placeholder=f"🔍 Filtrer {col_tuple[1]}", key=f"search_{col_tuple[1]}")
+                options = sorted(df_all[col_tuple].dropna().unique())
+                if saisie:
+                    options = [opt for opt in options if saisie.lower() in str(opt).lower()]
+                if options:
+                    choix = st.selectbox("", options, key=f"select_{col_tuple[1]}")
+                    if choix:
+                        df_all = df_all[df_all[col_tuple] == choix]
+
 
         # ✅ Export Excel avec couleurs
         buffer = BytesIO()
@@ -356,14 +404,38 @@ def afficher_menu_prix():
 def afficher_menu_memo():
     st.title("📄 GÉNÉRATION DU MÉMO DE RÉGULARISATION")
 
+    # ✅ Liste des mois en français (sans année figée)
     mois_options = [
-        "Janvier 2025", "Février 2025", "Mars 2025", "Avril 2025", "Mai 2025", "Juin 2025",
-        "Juillet 2025", "Août 2025", "Septembre 2025", "Octobre 2025", "Novembre 2025", "Décembre 2025"
+        "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
+        "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
     ]
-    mois_selectionne = st.selectbox("🗓️ Choisir le mois du mémo", mois_options, key="mois_memo")
+
+    # ✅ Dictionnaire de correspondance FR → EN pour datetime
+    mois_map_fr_en = {
+        "Janvier": "January", "Février": "February", "Mars": "March", "Avril": "April",
+        "Mai": "May", "Juin": "June", "Juillet": "July", "Août": "August",
+        "Septembre": "September", "Octobre": "October", "Novembre": "November", "Décembre": "December"
+    }
+
+    # ✅ Déterminer le mois courant
+    from datetime import date
+    aujourdhui = date.today()
+    mois_courant_fr = mois_options[aujourdhui.month - 1]   # ex: "Décembre"
+    annee_courante = aujourdhui.year
+
+    # ✅ Sélecteur avec valeur par défaut = mois courant
+    mois_selectionne = st.selectbox(
+        "🗓️ Choisir le mois du mémo",
+        mois_options,
+        index=mois_options.index(mois_courant_fr),
+        key="mois_memo"
+    )
+
+    # ✅ Construire la chaîne complète "Mois Année" pour la fonction generer_memo_mensuel
+    mois_selectionne_complet = f"{mois_selectionne} {annee_courante}"
 
     if st.button("📄 Télécharger le mémo"):
-        nom_fichier = generer_memo_mensuel(mois_selectionne)
+        nom_fichier = generer_memo_mensuel(mois_selectionne_complet)
         if not os.path.isfile(nom_fichier):
             st.warning("📭 Aucune donnée disponible pour ce mois.")
         else:
@@ -374,10 +446,10 @@ def afficher_menu_memo():
                     file_name=nom_fichier,
                     mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                 )
-            st.success(f"✅ Mémo généré pour {mois_selectionne}")
+            st.success(f"✅ Mémo généré pour {mois_selectionne_complet}")
 
     # ✅ Affichage des tableaux générés par la fonction
-    df_transpo, df_sites = generer_memo_mensuel(mois_selectionne, afficher=True)
+    df_transpo, df_sites = generer_memo_mensuel(mois_selectionne_complet, afficher=True)
     st.subheader("🚚 Montants par transporteur")
     st.dataframe(df_transpo, use_container_width=True)
     st.subheader("🏢 Montants par site")
