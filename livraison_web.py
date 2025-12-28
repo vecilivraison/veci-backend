@@ -134,10 +134,12 @@ def afficher_menu_livraisons():
     df_liv = pd.read_sql("SELECT * FROM livraison", engine)
     df_comp = pd.read_sql("SELECT * FROM compartiments", engine)
 
+    # Filtrer selon rôle transporteur
     if st.session_state["utilisateur"]["role"] == "transporteur":
         df_liv = df_liv[df_liv["transporteur_id"] == st.session_state["utilisateur"]["transporteur_id"]]
 
     if afficher:
+        # ✅ Filtrage uniquement par date
         df_liv["date"] = pd.to_datetime(df_liv["date"]).dt.date
         df_liv = df_liv[(df_liv["date"] >= date_debut) & (df_liv["date"] <= date_fin)]
 
@@ -163,7 +165,8 @@ def afficher_menu_livraisons():
             total_l = vol_super + vol_diesel + vol_petrole
             total_m = manq_super + manq_diesel + manq_petrole
             total_x = val_super + val_diesel + val_petrole
-            # ✅ Génération des liens pour les pièces jointes avec boutons cliquables
+
+            # ✅ Liens pièces jointes
             pdf_path = os.path.join(os.path.expanduser("~"), "Documents",
                                     f"Résumé_livraison_{row['commande']}_{row['bl_num']}_{row['date']}.pdf").replace(" ", "_")
             bl_path = os.path.join("docs", os.path.basename(str(row.get("photo_bl_path", ""))))
@@ -173,16 +176,15 @@ def afficher_menu_livraisons():
             lien_bl = f'<a href="file:///{bl_path.replace(os.sep, "/")}" target="_blank"><button>Voir BL</button></a>' if os.path.exists(bl_path) else "❌"
             lien_ocst = f'<a href="file:///{ocst_path.replace(os.sep, "/")}" target="_blank"><button>Voir OCST</button></a>' if os.path.exists(ocst_path) else "❌"
 
-
             tableau.append([
                 row["id"], row["date"], row["commande"], row["bl_num"], row["depot"],
                 row["transporteur_id"], row["tracteur"], row["citerne"], row["chauffeur"],
                 vol_super, vol_diesel, vol_petrole, total_l,
                 manq_super, manq_diesel, manq_petrole, total_m,
-                val_super, val_diesel, val_petrole, total_x, lien_pdf, lien_bl, lien_ocst # ✅ AJOUT DES PIÈCES JOINTES
+                val_super, val_diesel, val_petrole, total_x, lien_pdf, lien_bl, lien_ocst
             ])
 
-        # ✅ Colonnes enrichies avec MultiIndex
+        # ✅ Colonnes enrichies avec MultiIndex (attention à la virgule avant PIÈCES JOINTES)
         columns = pd.MultiIndex.from_tuples([
             ("INFORMATION GÉNÉRALE", "Id"), ("INFORMATION GÉNÉRALE", "Date"), ("INFORMATION GÉNÉRALE", "Commande"),
             ("INFORMATION GÉNÉRALE", "BL"), ("INFORMATION GÉNÉRALE", "Dépôt"), ("INFORMATION GÉNÉRALE", "Transporteur"),
@@ -193,15 +195,13 @@ def afficher_menu_livraisons():
             ("MANQUANT EN LITRE", f"{nom_produits['PDT3']} (L)"), ("MANQUANT EN LITRE", "Total (L)"),
             ("MANQUANT EN XOF", f"{nom_produits['PDT1']} (XOF)"), ("MANQUANT EN XOF", f"{nom_produits['PDT2']} (XOF)"),
             ("MANQUANT EN XOF", f"{nom_produits['PDT3']} (XOF)"), ("MANQUANT EN XOF", "Total (XOF)"),
-            ("PIÈCES JOINTES", "Résumé PDF"), ("PIÈCES JOINTES", "BL"), ("PIÈCES JOINTES", "OCST") # ✅ AJOUT DES PIÈCES JOINTES
+            ("PIÈCES JOINTES", "Résumé PDF"), ("PIÈCES JOINTES", "BL"), ("PIÈCES JOINTES", "OCST")
         ])
 
         df_all = pd.DataFrame(tableau, columns=columns)
 
-        # ✅ Filtres dynamiques alignés avec les colonnes INFORMATION GÉNÉRALE
+        # ✅ Filtres dynamiques par colonne (affichés mais non appliqués tant que le second bouton n'est pas cliqué)
         st.markdown("### 🔎 Filtres par colonne")
-
-        # Liste des colonnes à filtrer
         colonnes_info = [
             ("INFORMATION GÉNÉRALE", "Id"),
             ("INFORMATION GÉNÉRALE", "Commande"),
@@ -213,9 +213,9 @@ def afficher_menu_livraisons():
             ("INFORMATION GÉNÉRALE", "Chauffeur")
         ]
 
-        # Créer une ligne de filtres alignés
         colonnes_streamlit = st.columns(len(colonnes_info))
-        for i, (col_tuple) in enumerate(colonnes_info):
+        choix_filtres = {}
+        for i, col_tuple in enumerate(colonnes_info):
             with colonnes_streamlit[i]:
                 st.markdown(f"**{col_tuple[1]}**")
                 saisie = st.text_input("", placeholder=f"🔍 Filtrer {col_tuple[1]}", key=f"search_{col_tuple[1]}")
@@ -224,16 +224,19 @@ def afficher_menu_livraisons():
                     options = [opt for opt in options if saisie.lower() in str(opt).lower()]
                 if options:
                     choix = st.selectbox("", options, key=f"select_{col_tuple[1]}")
-                    if choix:
-                        df_all = df_all[df_all[col_tuple] == choix]
+                    choix_filtres[col_tuple] = choix
 
+        # ✅ Second bouton pour appliquer les filtres
+        if st.button("🔍 Appliquer les filtres"):
+            for col_tuple, choix in choix_filtres.items():
+                if choix:
+                    df_all = df_all[df_all[col_tuple] == choix]
 
-        # ✅ Export Excel avec couleurs (sans les colonnes PIÈCES JOINTES)
+        # ✅ Export Excel (sans les colonnes PIÈCES JOINTES)
         buffer = BytesIO()
         import xlsxwriter
         from collections import defaultdict
 
-        # ✅ Exclure les colonnes PIÈCES JOINTES
         df_export = df_all[[col for col in df_all.columns if col[0] != "PIÈCES JOINTES"]]
 
         workbook = xlsxwriter.Workbook(buffer)
@@ -248,18 +251,14 @@ def afficher_menu_livraisons():
 
         formats_header, formats_sub = {}, {}
         for cat, (bg_header, bg_sub) in couleurs.items():
-            formats_header[cat] = workbook.add_format({
-                "bold": True, "align": "center", "valign": "vcenter", "border": 1, "bg_color": bg_header
-            })
-            formats_sub[cat] = workbook.add_format({
-                "bold": True, "align": "center", "valign": "vcenter", "border": 1, "bg_color": bg_sub
-            })
+            formats_header[cat] = workbook.add_format({"bold": True, "align": "center", "valign": "vcenter", "border": 1, "bg_color": bg_header})
+            formats_sub[cat] = workbook.add_format({"bold": True, "align": "center", "valign": "vcenter", "border": 1, "bg_color": bg_sub})
 
         format_cell_gauche = workbook.add_format({"align": "left", "valign": "vcenter", "border": 1})
         format_cell_centre = workbook.add_format({"align": "center", "valign": "vcenter", "border": 1})
         format_cell_droite = workbook.add_format({"align": "right", "valign": "vcenter", "border": 1})
 
-        # ✅ Regrouper les colonnes par catégorie
+        # Regrouper par catégorie
         groupes = defaultdict(list)
         for col in df_export.columns:
             groupes[col[0]].append(col[1])
@@ -274,7 +273,7 @@ def afficher_menu_livraisons():
                 colonne_to_categorie[col + i] = cat
             col += largeur
 
-        # ✅ Écriture des données
+        # Écriture des données
         for row_idx, row in enumerate(df_export.values):
             for col_idx, val in enumerate(row):
                 cat = colonne_to_categorie.get(col_idx, "")
@@ -294,14 +293,12 @@ def afficher_menu_livraisons():
                 else:
                     worksheet.write(row_idx + 2, col_idx, val, fmt)
 
-        # ✅ Ajuster largeur des colonnes
         for i in range(col):
             worksheet.set_column(i, i, 18)
 
         workbook.close()
         buffer.seek(0)
 
-        # ✅ Bouton de téléchargement Excel
         st.download_button(
             label="📥 Exporter en Excel",
             data=buffer,
@@ -309,14 +306,13 @@ def afficher_menu_livraisons():
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
 
-        # ✅ Affichage enrichi
+        # ✅ Affichage enrichi du tableau
         st.markdown("""
         <style>
         table { width: 100%; border-collapse: collapse; }
         th, td { padding: 6px 12px; text-align: left; white-space: nowrap; }
         </style>
         """, unsafe_allow_html=True)
-
         st.write(df_all.to_html(escape=False, index=False), unsafe_allow_html=True)
 
 # -------------------- BLOC 5 — GESTION DES PRIX --------------------
