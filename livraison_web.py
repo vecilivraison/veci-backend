@@ -112,9 +112,12 @@ def afficher_menu_principal():
     return st.session_state.menu_selectionne
 
 # -------------------- BLOC 4 — VISUALISATION DES LIVRAISONS --------------------
-
 def afficher_menu_livraisons():
     st.title("🚛 VISUALISATION DES LIVRAISONS")
+
+    # ✅ État persistant pour garder la section visible
+    if "livraisons_visible" not in st.session_state:
+        st.session_state.livraisons_visible = False
 
     col1, col2, col3 = st.columns([2, 2, 2])
     from datetime import date
@@ -127,7 +130,10 @@ def afficher_menu_livraisons():
     with col2:
         date_fin = st.date_input("📅 Date de fin", value=aujourdhui)
     with col3:
-        afficher = st.button("🔍 Afficher")
+        afficher_btn = st.button("🔍 Afficher")
+
+    if afficher_btn:
+        st.session_state.livraisons_visible = True
 
     df_liv = pd.read_sql("SELECT * FROM livraison", engine)
     df_comp = pd.read_sql("SELECT * FROM compartiments", engine)
@@ -135,7 +141,7 @@ def afficher_menu_livraisons():
     if st.session_state["utilisateur"]["role"] == "transporteur":
         df_liv = df_liv[df_liv["transporteur_id"] == st.session_state["utilisateur"]["transporteur_id"]]
 
-    if afficher:
+    if st.session_state.livraisons_visible:
         df_liv["date"] = pd.to_datetime(df_liv["date"]).dt.date
         df_liv = df_liv[(df_liv["date"] >= date_debut) & (df_liv["date"] <= date_fin)]
 
@@ -317,7 +323,6 @@ def afficher_menu_livraisons():
         """, unsafe_allow_html=True)
 
         st.write(df_all.to_html(escape=False, index=False), unsafe_allow_html=True)
-
 
 # -------------------- BLOC 5 — GESTION DES PRIX --------------------
 def afficher_menu_prix():
