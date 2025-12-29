@@ -200,8 +200,9 @@ def afficher_menu_livraisons():
 
         df_all = pd.DataFrame(tableau, columns=columns)
 
-        # ✅ Filtres avec champ de saisie + selectbox
+        # ✅ Filtres simplifiés : une seule ligne par colonne
         st.markdown("### 🔎 Filtres par colonne")
+
         colonnes_info = [
             ("INFORMATION GÉNÉRALE", "Id"),
             ("INFORMATION GÉNÉRALE", "Commande"),
@@ -215,21 +216,26 @@ def afficher_menu_livraisons():
 
         colonnes_streamlit = st.columns(len(colonnes_info))
         choix_filtres = {}
+
         for i, col_tuple in enumerate(colonnes_info):
             with colonnes_streamlit[i]:
                 st.markdown(f"**{col_tuple[1]}**")
-                saisie = st.text_input(f"Recherche {col_tuple[1]}", key=f"search_{col_tuple[1]}")
-                options = sorted(df_all[col_tuple].dropna().unique())
-                if saisie:
-                    options = [opt for opt in options if saisie.lower() in str(opt).lower()]
-                choix = st.selectbox(f"Sélection {col_tuple[1]}", [""] + options, key=f"select_{col_tuple[1]}")
+                # ✅ Un seul selectbox, avec recherche intégrée
+                choix = st.selectbox(
+                    "",
+                    [""] + sorted(df_all[col_tuple].dropna().unique()),
+                    key=f"select_{col_tuple[1]}"
+                )
                 if choix:
                     choix_filtres[col_tuple] = choix
 
+        # ✅ Bouton pour appliquer les filtres
         if st.button("🔍 Appliquer les filtres"):
             for col_tuple, choix in choix_filtres.items():
                 if choix:
                     df_all = df_all[df_all[col_tuple] == choix]
+
+
         # ✅ Export Excel sans PIÈCES JOINTES
         buffer = BytesIO()
         import xlsxwriter
