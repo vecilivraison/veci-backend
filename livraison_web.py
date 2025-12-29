@@ -232,17 +232,17 @@ def afficher_menu_livraisons():
                 choix = st_searchbox(
                     search_options,
                     key=f"searchbox_{col_tuple[1]}",
-                    placeholder=f"Saisir ou choisir {col_tuple[1]}"
+                    placeholder=f"Choisir {col_tuple[1]}"
                 )
 
                 if choix:
                     choix_filtres[col_tuple] = choix
 
-# ✅ Bouton pour appliquer les filtres
-if st.button("🔍 Appliquer les filtres"):
-    for col_tuple, choix in choix_filtres.items():
-        if choix:
-            df_all = df_all[df_all[col_tuple] == choix]
+        # ✅ Bouton pour appliquer les filtres
+        if st.button("🔍 Appliquer les filtres"):
+            for col_tuple, choix in choix_filtres.items():
+                if choix:
+                    df_all = df_all[df_all[col_tuple] == choix]
 
 
         # ✅ Export Excel sans PIÈCES JOINTES
