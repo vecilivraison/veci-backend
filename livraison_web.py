@@ -201,6 +201,7 @@ def afficher_menu_livraisons():
         df_all = pd.DataFrame(tableau, columns=columns)
 
         # ✅ Filtres simplifiés : une seule ligne par colonne
+        from streamlit_searchbox import st_searchbox
         st.markdown("### 🔎 Filtres par colonne")
 
         colonnes_info = [
@@ -220,20 +221,28 @@ def afficher_menu_livraisons():
         for i, col_tuple in enumerate(colonnes_info):
             with colonnes_streamlit[i]:
                 st.markdown(f"**{col_tuple[1]}**")
-                # ✅ Un seul selectbox, avec recherche intégrée
-                choix = st.selectbox(
-                    "",
-                    [""] + sorted(df_all[col_tuple].dropna().unique()),
-                    key=f"select_{col_tuple[1]}"
+
+                # ✅ Widget avec champ de saisie intégré
+                def search_options(query):
+                    options = sorted(df_all[col_tuple].dropna().unique())
+                    if query:
+                        options = [opt for opt in options if query.lower() in str(opt).lower()]
+                    return options
+
+                choix = st_searchbox(
+                    search_options,
+                    key=f"searchbox_{col_tuple[1]}",
+                    placeholder=f"Saisir ou choisir {col_tuple[1]}"
                 )
+
                 if choix:
                     choix_filtres[col_tuple] = choix
 
-        # ✅ Bouton pour appliquer les filtres
-        if st.button("🔍 Appliquer les filtres"):
-            for col_tuple, choix in choix_filtres.items():
-                if choix:
-                    df_all = df_all[df_all[col_tuple] == choix]
+# ✅ Bouton pour appliquer les filtres
+if st.button("🔍 Appliquer les filtres"):
+    for col_tuple, choix in choix_filtres.items():
+        if choix:
+            df_all = df_all[df_all[col_tuple] == choix]
 
 
         # ✅ Export Excel sans PIÈCES JOINTES
