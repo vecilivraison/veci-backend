@@ -11,6 +11,8 @@ from generer_memo import generer_memo_mensuel
 
 # ✅ Connexion PostgreSQL via Render
 DATABASE_URL = os.getenv("DATABASE_URL")  # doit être défini dans Render
+API_BASE = "https://livraison-api-snsv.onrender.com"  #l’URL réelle de ton API FastAPI
+
 engine = create_engine(DATABASE_URL)
 
 
@@ -168,14 +170,21 @@ def afficher_menu_livraisons():
             total_m = manq_super + manq_diesel + manq_petrole
             total_x = val_super + val_diesel + val_petrole
 
-            pdf_path = os.path.join(os.path.expanduser("~"), "Documents",
-                                    f"Résumé_livraison_{row['commande']}_{row['bl_num']}_{row['date']}.pdf").replace(" ", "_")
-            bl_path = os.path.join("docs", os.path.basename(str(row.get("photo_bl_path", ""))))
-            ocst_path = os.path.join("docs", os.path.basename(str(row.get("photo_ocst_path", ""))))
 
-            lien_pdf = f'<a href="file:///{pdf_path.replace(os.sep, "/")}" target="_blank"><button>Voir Résumé PDF</button></a>' if os.path.exists(pdf_path) else "❌"
-            lien_bl = f'<a href="file:///{bl_path.replace(os.sep, "/")}" target="_blank"><button>Voir BL</button></a>' if os.path.exists(bl_path) else "❌"
-            lien_ocst = f'<a href="file:///{ocst_path.replace(os.sep, "/")}" target="_blank"><button>Voir OCST</button></a>' if os.path.exists(ocst_path) else "❌"
+            # ✅ Liens vers les pièces jointes et résumé PDF
+            lien_bl = (
+                f'<a href="{API_BASE}/files/{os.path.basename(str(row.get("doc_bl", "")))}" target="_blank"><button>Voir BL</button></a>'
+                if row.get("doc_bl") else "❌"
+            )
+
+            lien_ocst = (
+                f'<a href="{API_BASE}/files/{os.path.basename(str(row.get("doc_ocst", "")))}" target="_blank"><button>Voir OCST</button></a>'
+                if row.get("doc_ocst") else "❌"
+            )
+
+            lien_pdf = (
+                f'<a href="{API_BASE}/livraisons/pdf?bl={row["bl_num"]}" target="_blank"><button>Voir Résumé PDF</button></a>'
+            )
 
             tableau.append([
                 row["id"], row["date"], row["commande"], row["bl_num"], row["depot"],
