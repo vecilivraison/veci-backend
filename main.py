@@ -261,12 +261,16 @@ async def create_livraison(
         "doc_bl": bl_path,
         "doc_ocst": ocst_path
     }
+# -------------------------------
+# Génération résumé PDF
+                
 @app.get("/livraisons/pdf")
 def generer_resume_pdf(bl: str):
     with engine.connect() as conn:
+        # 🔍 Récupération de la livraison
         livraison = conn.execute(
             text("""SELECT id, date, site_id, transporteur_id, chauffeur, tracteur, citerne,
-                    commande, bl_num, volume_total, manquant_remboursable, doc_bl, doc_ocst
+                           commande, bl_num, volume_total, manquant_remboursable, doc_bl, doc_ocst
                     FROM livraison WHERE bl_num = :bl"""),
             {"bl": bl}
         ).mappings().first()
@@ -274,9 +278,11 @@ def generer_resume_pdf(bl: str):
         if not livraison:
             return {"error": f"Livraison introuvable pour BL {bl}"}
 
+        # 🔍 Récupération des noms liés
         site = conn.execute(text("SELECT nom_site FROM sites WHERE id = :sid"), {"sid": livraison["site_id"]}).scalar()
         transporteur = conn.execute(text("SELECT nom FROM transporteurs WHERE id = :tid"), {"tid": livraison["transporteur_id"]}).scalar()
 
+        # 🔍 Récupération des compartiments
         compartiments = conn.execute(
             text("""SELECT c.num_compartiment, p.nom AS produit,
                            c.volume_livre, c.volume_manquant, c.commentaire
@@ -303,13 +309,91 @@ def generer_resume_pdf(bl: str):
         pdf.cell(200, 10, txt=f"RÉSUMÉ LIVRAISON BL {livraison['bl_num']}", ln=True, align="C")
         pdf.ln(5)
 
-        # ... (infos générales, détails, totaux comme dans ton script initial)
+        # 🟧 Partie 1 : Informations générales
+        pdf.set_fill_color(255, 204, 153)
+        pdf.set_font("Arial", "B", 12)
+        pdf.cell(200, 10, txt="PARTIE 1 : INFORMATIONS GÉNÉRALES", ln=True, fill=True)
+        pdf.ln(3)
 
+        infos = [
+            ("DATE DE LIVRAISON", livraison["date"]),
+            ("SITE", site),
+            ("NUMÉRO DE COMMANDE", livraison["commande"]),
+            ("NUMÉRO DE BL", livraison["bl_num"]),
+            ("TRANSPORTEUR", transporteur),
+            ("CITERNE", livraison["citerne"]),
+            ("TRACTEUR", livraison["tracteur"]),
+            ("CHAUFFEUR", livraison["chauffeur"]),
+        ]
+
+        pdf.set_font("Arial", "B", 10)
+        for libelle, desc in infos:
+            pdf.cell(60, 10, libelle, 1, 0, 'L', True)
+            pdf.set_font("Arial", "", 10)
+            pdf.cell(130, 10, str(desc), 1, ln=True)
+        pdf.ln(5)
+
+        # 🟧 Partie 2 : Détail livraison
+        pdf.set_font("Arial", "B", 12)
+        pdf.set_fill_color(255, 204, 153)
+        pdf.cell(200, 10, txt="PARTIE 2 : DÉTAIL LIVRAISON", ln=True, fill=True)
+        pdf.ln(3)
+
+        headers = ["NUM_CPT", "PRODUIT", "VOLUME (L)", "MANQUANT (L)", "COMMENTAIRE"]
+        widths = [30, 50, 40, 40, 30]
+
+        pdf.set_font("Arial", "B", 10)
+        for i, h in enumerate(headers):
+            pdf.cell(widths[i], 10, h, 1, 0, 'C', True)
+        pdf.ln()
+
+        pdf.set_font("Arial", "", 10)
+        for c in compartiments:
+            pdf.cell(widths[0], 10, str(c["num_compartiment"]), 1)
+            pdf.cell(widths[1], 10, str(c["produit"]), 1)
+            pdf.cell(widths[2], 10, str(c["volume_livre"]), 1)
+            pdf.cell(widths[3], 10, str(c["volume_manquant"]), 1)
+            pdf.cell(widths[4], 10, str(c["commentaire"]), 1)
+            pdf.ln()
+        pdf.ln(5)
+
+        # 🟧 Partie 3 : Totaux par produit
+        pdf.set_font("Arial", "B", 12)
+        pdf.set_fill_color(255, 204, 153)
+        pdf.cell(200, 10, txt="PARTIE 3 : TOTAL LIVRÉ / MANQUANT REMBOURSABLE", ln=True, fill=True)
+        pdf.ln(3)
+
+        pdf.set_font("Arial", "B", 10)
+        pdf.cell(70, 10, "PRODUIT", 1, 0, 'C', True)
+        pdf.cell(60, 10, "VOLUME LIVRÉ (L)", 1, 0, 'C', True)
+        pdf.cell(60, 10, "MANQUANT REMBOURSABLE", 1, ln=True, fill=True)
+
+        pdf.set_font("Arial", "", 10)
+        total_volume = 0
+        total_manquant = 0
+
+        for produit, data in totaux.items():
+            pdf.cell(70, 10, produit, 1)
+            pdf.cell(60, 10, str(data["volume"]), 1)
+            pdf.cell(60, 10, str(data["manquant"]), 1)
+            pdf.ln()
+            total_volume += data["volume"]
+            total_manquant += data["manquant"]
+
+        pdf.set_font("Arial", "B", 10)
+        pdf.cell(70, 10, "TOTAL", 1)
+        pdf.cell(60, 10, str(total_volume), 1)
+        pdf.cell(60, 10, str(total_manquant), 1)
+        pdf.ln(10)
+
+        # 📁 Sauvegarde
         filename = f"Livraison_{site}_BL {livraison['bl_num']} du {livraison['date']}.pdf"
         pdf_path = f"uploads/{filename}"
         pdf.output(pdf_path)
 
         return FileResponse(pdf_path, media_type="application/pdf", filename=filename)
+
+# Dépendance pour obtenir la session DB
 def get_db():
     db = SessionLocal()
     try:
