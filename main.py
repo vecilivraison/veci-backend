@@ -40,8 +40,10 @@ def get_storage_client():
     if not creds_json:
         raise Exception("Credentials not found in environment")
     creds_dict = json.loads(creds_json)
-    # ⚠️ ADC généré par gcloud → utiliser from_authorized_user_info
-    credentials = service_account.Credentials.from_authorized_user_info(creds_dict)
+
+    # ✅ Utiliser Credentials.from_authorized_user_info pour ADC OAuth
+    credentials = Credentials.from_authorized_user_info(creds_dict)
+
     return storage.Client(credentials=credentials, project=creds_dict.get("quota_project_id"))
 
 def upload_to_gcs(file_path: str, destination_blob: str):
