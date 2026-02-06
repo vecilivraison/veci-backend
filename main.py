@@ -51,7 +51,10 @@ def upload_to_gcs(file_path: str, destination_blob: str):
     bucket = client.bucket(BUCKET_NAME)
     blob = bucket.blob(destination_blob)
     blob.upload_from_filename(file_path)
-    return f"https://storage.googleapis.com/{BUCKET_NAME}/{destination_blob}"
+    # ✅ rendre le fichier public 
+    blob.make_public()
+    
+    return blob.public_url # renvoie l’URL publique utilisable par Flutter
 
 # -------------------------------
 # Endpoints de base (commerciaux, sites, transporteurs, etc.)
