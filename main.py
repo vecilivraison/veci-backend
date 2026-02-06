@@ -73,7 +73,94 @@ def get_transporteurs():
         result = conn.execute(text("SELECT id, nom FROM transporteurs")).mappings().all()
         return list(result)
 
-# ... (idem pour chauffeurs, tracteurs, citernes, produits, dépôts)
+# -------------------------------
+# Chauffeurs
+# -------------------------------
+@app.get("/chauffeurs")
+def get_chauffeurs(transporteur_id: str):
+    with engine.connect() as conn:
+        query = text("SELECT id, nom_chauffeur FROM chauffeurs WHERE transporteur_id = :tid")
+        result = conn.execute(query, {"tid": transporteur_id}).mappings().all()
+        return list(result)
+
+# -------------------------------
+# Tracteurs
+# -------------------------------
+@app.get("/tracteurs")
+def get_tracteurs(transporteur_id: str):
+    with engine.connect() as conn:
+        query = text("SELECT tracteur_id, tracteur FROM tracteurs WHERE transporteur_id = :tid")
+        result = conn.execute(query, {"tid": transporteur_id}).mappings().all()
+        return list(result)
+
+# -------------------------------
+# Citernes
+# -------------------------------
+@app.get("/citernes")
+def get_citernes(transporteur_id: str):
+    with engine.connect() as conn:
+        query = text("SELECT id, num_citerne FROM citernes WHERE transporteur_id = :tid")
+        result = conn.execute(query, {"tid": transporteur_id}).mappings().all()
+        return list(result)
+
+# -------------------------------
+# Produits
+# -------------------------------
+@app.get("/produits")
+def get_produits():
+    with engine.connect() as conn:
+        result = conn.execute(text("SELECT id, nom FROM produits")).mappings().all()
+        return list(result)
+
+# -------------------------------
+# Dépôts
+# -------------------------------
+@app.get("/depots")
+def get_depots():
+    with engine.connect() as conn:
+        result = conn.execute(text("SELECT id, nom FROM depots")).mappings().all()
+        return list(result)
+# Chauffeurs
+@app.post("/chauffeurs")
+async def create_chauffeur(nom_chauffeur: str = Form(...), transporteur_id: str = Form(...)):
+    with engine.begin() as conn:
+        last_num = conn.execute(
+            text("SELECT MAX(CAST(SUBSTRING(id FROM 3) AS INTEGER)) FROM chauffeurs")
+        ).scalar()
+        new_id = "CH1" if last_num is None else f"CH{last_num + 1}"
+        conn.execute(
+            text("INSERT INTO chauffeurs (id, nom_chauffeur, transporteur_id) VALUES (:id, :nom, :tid)"),
+            {"id": new_id, "nom": nom_chauffeur, "tid": transporteur_id}
+        )
+        return {"id": new_id, "nom_chauffeur": nom_chauffeur}
+
+# Citernes
+@app.post("/citernes")
+async def create_citerne(num_citerne: str = Form(...), transporteur_id: str = Form(...)):
+    with engine.begin() as conn:
+        last_num = conn.execute(
+            text("SELECT MAX(CAST(SUBSTRING(id FROM 4) AS INTEGER)) FROM citernes")
+        ).scalar()
+        new_id = "CIT1" if last_num is None else f"CIT{last_num + 1}"
+        conn.execute(
+            text("INSERT INTO citernes (id, num_citerne, transporteur_id) VALUES (:id, :num, :tid)"),
+            {"id": new_id, "num": num_citerne, "tid": transporteur_id}
+        )
+        return {"id": new_id, "num_citerne": num_citerne}
+
+# Tracteurs
+@app.post("/tracteurs")
+async def create_tracteur(tracteur: str = Form(...), transporteur_id: str = Form(...)):
+    with engine.begin() as conn:
+        last_num = conn.execute(
+            text("SELECT MAX(CAST(SUBSTRING(tracteur_id FROM 5) AS INTEGER)) FROM tracteurs")
+        ).scalar()
+        new_id = "TRAC1" if last_num is None else f"TRAC{last_num + 1}"
+        conn.execute(
+            text("INSERT INTO tracteurs (tracteur_id, tracteur, transporteur_id) VALUES (:id, :tr, :tid)"),
+            {"id": new_id, "tr": tracteur, "tid": transporteur_id}
+        )
+        return {"tracteur_id": new_id, "tracteur": tracteur}
 
 # -------------------------------
 # Upload BL / OCST vers GCS
