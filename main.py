@@ -12,7 +12,7 @@ from database import SessionLocal, Livraison
 
 # Google Cloud
 from google.cloud import storage
-from google.oauth2 import service_account
+from google.oauth2.credentials import Credentials
 
 # 🔌 Connexion DB
 load_dotenv()
