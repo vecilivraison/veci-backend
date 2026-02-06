@@ -75,3 +75,4 @@ xlsxwriter==3.2.9
 yarl==1.22.0
 python-multipart==0.0.9
 fpdf2==2.7.6
+google-cloud-storage
