@@ -281,6 +281,22 @@ def generer_resume_pdf(bl: str):
         transporteur = conn.execute(text("SELECT nom FROM transporteurs WHERE id = :tid"),
                                     {"tid": livraison["transporteur_id"]}).scalar()
 
+        # ✅ Traduction des IDs en noms
+        chauffeur_nom = conn.execute(
+            text("SELECT nom_chauffeur FROM chauffeurs WHERE id = :cid"),
+            {"cid": livraison["chauffeur"]}
+        ).scalar()
+
+        tracteur_nom = conn.execute(
+            text("SELECT tracteur FROM tracteurs WHERE tracteur_id = :tid"),
+            {"tid": livraison["tracteur"]}
+        ).scalar()
+
+        citerne_nom = conn.execute(
+            text("SELECT num_citerne FROM citernes WHERE id = :iid"),
+            {"iid": livraison["citerne"]}
+        ).scalar()
+
         # 🔍 Récupération des compartiments
         compartiments = conn.execute(
             text("""SELECT c.num_compartiment, p.nom AS produit,
@@ -320,9 +336,9 @@ def generer_resume_pdf(bl: str):
             ("NUMÉRO DE COMMANDE", livraison["commande"]),
             ("NUMÉRO DE BL", livraison["bl_num"]),
             ("TRANSPORTEUR", transporteur),
-            ("CITERNE", livraison["citerne"]),
-            ("TRACTEUR", livraison["tracteur"]),
-            ("CHAUFFEUR", livraison["chauffeur"]),
+            ("CITERNE", citerne_nom),
+            ("TRACTEUR", tracteur_nom),
+            ("CHAUFFEUR", chauffeur_nom),
         ]
 
         pdf.set_font("Arial", "B", 10)
