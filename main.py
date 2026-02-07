@@ -223,7 +223,7 @@ async def create_livraison(
         ocst_path = upload_to_gcs(local_ocst, f"ocst/{ocst.filename}")
 
     with engine.begin() as conn:
-        # ... vérifications chauffeur/tracteur/citerne
+        # 🔹 Insertion de la livraison
         result = conn.execute(text("""
             INSERT INTO livraison (
                 commercial_id, site_id, transporteur_id, chauffeur,
@@ -254,9 +254,35 @@ async def create_livraison(
             "doc_bl": bl_path,
             "doc_ocst": ocst_path
         })
+
         livraison_id = result.scalar()
 
-    return {"id": livraison_id, "doc_bl": bl_path, "doc_ocst": ocst_path}
+        # 🔹 Insertion des compartiments
+        compartiments_data = json.loads(compartiments)
+        for c in compartiments_data:
+            conn.execute(text("""
+                INSERT INTO compartiments (
+                    livraison_id, num_compartiment, produit_id,
+                    volume_livre, volume_manquant, commentaire
+                )
+                VALUES (
+                    :livraison_id, :num_compartiment, :produit_id,
+                    :volume_livre, :volume_manquant, :commentaire
+                )
+            """), {
+                "livraison_id": livraison_id,
+                "num_compartiment": c["num_compartiment"],
+                "produit_id": c["produit_id"],
+                "volume_livre": c["volume_livre"],
+                "volume_manquant": c["volume_manquant"],
+                "commentaire": c["commentaire"],
+            })
+
+    return {
+        "id": livraison_id,
+        "doc_bl": bl_path,
+        "doc_ocst": ocst_path
+    }
 
 # -------------------------------
 # Génération résumé PDF vers GCS
