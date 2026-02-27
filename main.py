@@ -283,6 +283,20 @@ async def create_livraison(
         "doc_bl": bl_path,
         "doc_ocst": ocst_path
     }
+#--------------------------------
+#Endpoint Notifications
+#--------------------------------
+@app.get("/notifications")
+def get_notifications(site_id: str):
+    with engine.connect() as conn:
+        result = conn.execute(
+            text("""SELECT id, commande, bl_num, action, critere, message, created_at
+                    FROM notifications
+                    WHERE site = :site AND action = 'suppression'
+                    ORDER BY created_at DESC"""),
+            {"site": site_id}
+        ).mappings().all()
+    return list(result)
 
 # -------------------------------
 # Génération résumé PDF vers GCS
