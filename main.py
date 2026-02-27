@@ -460,20 +460,30 @@ def get_db():
         db.close()
 
 @app.get("/livraisons")
-def get_livraisons(site_id: str, date_debut: date = Query(...), date_fin: date = Query(...), db: Session = Depends(get_db)):
-    livraisons = (
-        db.query(Livraison)
-        .filter(Livraison.site_id == site_id, Livraison.date >= date_debut, Livraison.date <= date_fin)
-        .all()
-    )
+def get_livraisons(site_id: str, date_debut: date = Query(...), date_fin: date = Query(...)):
+    with engine.connect() as conn:
+        result = conn.execute(
+            text("""
+                SELECT id, date, bl_num, 
+                       volume_total AS volume_livre, 
+                       manquant_remboursable AS volume_manquant
+                FROM livraison
+                WHERE site_id = :site_id 
+                  AND date >= :date_debut 
+                  AND date <= :date_fin
+                ORDER BY date DESC
+            """),
+            {"site_id": site_id, "date_debut": date_debut, "date_fin": date_fin}
+        ).mappings().all()
+
     return [
         {
-            "id": l.id,
-            "date": l.date.isoformat(),
-            "bl_num": l.bl_num,
-            "volume_livre": l.volume_livre,
-            "volume_manquant": l.volume_manquant,
-            "resume_pdf_url": f"/livraisons/{l.id}/resume_pdf"
+            "id": r["id"],
+            "date": r["date"].isoformat() if r["date"] else None,
+            "bl_num": r["bl_num"],
+            "volume_livre": r["volume_livre"],
+            "volume_manquant": r["volume_manquant"],
+            "resume_pdf_url": f"/livraisons/{r['id']}/resume_pdf"
         }
-        for l in livraisons
+        for r in result
     ]
