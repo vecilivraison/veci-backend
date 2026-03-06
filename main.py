@@ -289,14 +289,22 @@ async def create_livraison(
 @app.get("/notifications")
 def get_notifications(site_id: str):
     with engine.connect() as conn:
+        # 🔹 Récupérer uniquement les notifications "non lue" côté site
         result = conn.execute(
-            text("""SELECT id, commande, bl_num, action, critere, message, created_at
+            text("""SELECT id, commande, bl_num, action, critere, message, created_at, statut_site
                     FROM notifications
-                    WHERE site = :site AND action = 'suppression'
-                    ORDER BY created_at DESC"""),
+                    WHERE site = :site AND statut_site = 'non lue'
+                    ORDER BY created_at ASC"""),   # 🔹 tri par date croissante
             {"site": site_id}
         ).mappings().all()
-    return list(result)
+
+        # 🔹 Vérifier s’il reste des notifications non lues
+        has_unread = len(result) > 0
+
+        return {
+            "has_unread": has_unread,   # ✅ champ supplémentaire pour Flutter
+            "notifications": list(result)
+        }
 
 # -------------------------------
 # Génération résumé PDF vers GCS
