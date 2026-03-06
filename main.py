@@ -306,6 +306,20 @@ def get_notifications(site_id: str):
             "notifications": list(result)
         }
 
+#--------------------------------
+#Endpoint Nom du site
+#--------------------------------
+@app.get("/site_name")
+def get_site_name(site_id: str):
+    with engine.connect() as conn:
+        result = conn.execute(
+            text("SELECT nom_site FROM sites WHERE id = :sid"),
+            {"sid": site_id}
+        ).scalar()
+        if not result:
+            return {"nom_site": site_id}  # fallback si non trouvé
+        return {"nom_site": result}
+
 # -------------------------------
 # Génération résumé PDF vers GCS
 # -------------------------------
