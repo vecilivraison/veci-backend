@@ -320,6 +320,19 @@ def get_site_name(site_id: str):
             return {"nom_site": site_id}  # fallback si non trouvé
         return {"nom_site": result}
 
+#--------------------------------
+#Endpoint Notification Lue
+#--------------------------------
+
+@app.put("/notifications/{notif_id}/read")
+def mark_notification_as_read(notif_id: int):
+    with engine.begin() as conn:
+        conn.execute(
+            text("UPDATE notifications SET statut_site='lue' WHERE id=:id"),
+            {"id": notif_id}
+        )
+    return {"message": "Notification confirmée"}
+
 # -------------------------------
 # Génération résumé PDF vers GCS
 # -------------------------------
